@@ -78,10 +78,12 @@ function ChatBox() {
     );
   };
 
+  // ⭐ FIXED FAST MESSAGE HANDLER
   const sendMessage = async () => {
     if (!message.trim()) return;
 
     const currentMessage = message;
+    const tempId = Date.now();
 
     const userMessage = {
       sender: "user",
@@ -89,6 +91,14 @@ function ChatBox() {
       time: new Date().toLocaleTimeString(),
     };
 
+    const botTypingMessage = {
+      id: tempId,
+      sender: "bot",
+      text: "Typing...",
+      time: new Date().toLocaleTimeString(),
+    };
+
+    // 1. Instant UI update (FAST FEEL)
     setChats((prev) =>
       prev.map((chat) =>
         chat.id === currentChatId
@@ -98,7 +108,7 @@ function ChatBox() {
                 chat.title === "New Chat"
                   ? currentMessage.slice(0, 25)
                   : chat.title,
-              messages: [...chat.messages, userMessage],
+              messages: [...chat.messages, userMessage, botTypingMessage],
             }
           : chat
       )
@@ -112,21 +122,27 @@ function ChatBox() {
         { message: currentMessage }
       );
 
-      const botMessage = {
+      const botReply = {
         sender: "bot",
         text: res.data.reply,
         time: new Date().toLocaleTimeString(),
       };
 
+      // 2. Replace "Typing..." with real answer
       setChats((prev) =>
         prev.map((chat) =>
           chat.id === currentChatId
-            ? { ...chat, messages: [...chat.messages, botMessage] }
+            ? {
+                ...chat,
+                messages: chat.messages.map((msg) =>
+                  msg.id === tempId ? botReply : msg
+                ),
+              }
             : chat
         )
       );
     } catch (err) {
-      const errorMessage = {
+      const errorReply = {
         sender: "bot",
         text: "⚠️ Something went wrong. Try again.",
         time: new Date().toLocaleTimeString(),
@@ -135,7 +151,12 @@ function ChatBox() {
       setChats((prev) =>
         prev.map((chat) =>
           chat.id === currentChatId
-            ? { ...chat, messages: [...chat.messages, errorMessage] }
+            ? {
+                ...chat,
+                messages: chat.messages.map((msg) =>
+                  msg.id === tempId ? errorReply : msg
+                ),
+              }
             : chat
         )
       );
