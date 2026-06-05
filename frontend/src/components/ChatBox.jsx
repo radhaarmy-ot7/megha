@@ -134,7 +134,7 @@ function ChatBox() {
 
     try {
       const res = await axios.post(
-        "http://localhost:5000/api/chat",
+        "https://megha-backend-kye1.onrender.com",
         {
           message: currentMessage,
         }
