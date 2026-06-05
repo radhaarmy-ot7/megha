@@ -5,7 +5,7 @@ const router = express.Router();
 
 router.post("/", async (req, res) => {
   try {
-    const { message } = req.body;
+    const { message, history } = req.body;
 
     // 1. Validate input
     if (!message || !message.trim()) {
@@ -14,37 +14,41 @@ router.post("/", async (req, res) => {
       });
     }
 
-    // 2. Call AI API with SYSTEM INSTRUCTION (MAKES BOT SMART)
+    // 2. System instruction (stronger + cleaner)
+    const systemPrompt = {
+      role: "system",
+      content: `
+You are a highly intelligent AI tutor like ChatGPT.
+
+Rules:
+- Give detailed, step-by-step explanations
+- Use simple language for students
+- Add examples when needed
+- Use headings and bullet points
+- Always be helpful and clear
+- Break complex topics into easy parts
+- Do not give short answers
+      `,
+    };
+
+    // 3. Build conversation
+    const messages = [
+      systemPrompt,
+      ...(Array.isArray(history) ? history : []),
+      {
+        role: "user",
+        content: message,
+      },
+    ];
+
+    // 4. Call NVIDIA API
     const response = await axios.post(
       "https://integrate.api.nvidia.com/v1/chat/completions",
       {
         model: "meta/llama-3.1-70b-instruct",
-
-        messages: [
-          {
-            role: "system",
-            content: `
-You are a highly intelligent AI assistant like ChatGPT.
-
-Rules you MUST follow:
-- Give detailed and long answers
-- Always explain step-by-step
-- Use simple language for students
-- Add examples when needed
-- Structure answers with headings or points
-- Never give very short replies
-- Act like a helpful tutor for exams and learning
-- If question is complex, break it down clearly
-            `,
-          },
-          {
-            role: "user",
-            content: message,
-          },
-        ],
-
+        messages,
         temperature: 0.7,
-        max_tokens: 1000, // 🔥 increased for longer answers
+        max_tokens: 1000,
       },
       {
         headers: {
@@ -55,7 +59,7 @@ Rules you MUST follow:
       }
     );
 
-    // 3. Safe response extraction
+    // 5. Extract reply
     const botReply =
       response?.data?.choices?.[0]?.message?.content ||
       "⚠️ No response from AI";
@@ -63,7 +67,6 @@ Rules you MUST follow:
     return res.json({
       reply: botReply,
     });
-
   } catch (error) {
     console.error("Chat API Error:", error?.response?.data || error.message);
 
