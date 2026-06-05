@@ -134,11 +134,11 @@ function ChatBox() {
 
     try {
       const res = await axios.post(
-        "https://megha-backend-kye1.onrender.com",
-        {
-          message: currentMessage,
-        }
-      );
+  "https://megha-backend-kye1.onrender.com/api/chat",
+  {
+    message: currentMessage,
+  }
+);
 
       const botMessage = {
         sender: "bot",
