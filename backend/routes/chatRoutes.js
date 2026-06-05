@@ -14,26 +14,44 @@ router.post("/", async (req, res) => {
       });
     }
 
-    // 2. Call AI API
+    // 2. Call AI API with SYSTEM INSTRUCTION (MAKES BOT SMART)
     const response = await axios.post(
       "https://integrate.api.nvidia.com/v1/chat/completions",
       {
         model: "meta/llama-3.1-70b-instruct",
+
         messages: [
+          {
+            role: "system",
+            content: `
+You are a highly intelligent AI assistant like ChatGPT.
+
+Rules you MUST follow:
+- Give detailed and long answers
+- Always explain step-by-step
+- Use simple language for students
+- Add examples when needed
+- Structure answers with headings or points
+- Never give very short replies
+- Act like a helpful tutor for exams and learning
+- If question is complex, break it down clearly
+            `,
+          },
           {
             role: "user",
             content: message,
           },
         ],
+
         temperature: 0.7,
-        max_tokens: 500,
+        max_tokens: 1000, // 🔥 increased for longer answers
       },
       {
         headers: {
           Authorization: `Bearer ${process.env.NVIDIA_API_KEY}`,
           "Content-Type": "application/json",
         },
-        timeout: 20000, // ⏱ prevents hanging requests
+        timeout: 20000,
       }
     );
 
