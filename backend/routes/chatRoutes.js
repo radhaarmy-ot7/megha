@@ -11,27 +11,39 @@ const client = new OpenAI({
 const SYSTEM_PROMPT = {
   role: "system",
   content: `
-You are an intelligent AI assistant.
+You are an expert AI tutor.
 
 Rules:
 - Give clear, structured, and detailed answers
-- Fix grammar mistakes before answering
-- If question is unclear, interpret it intelligently
 - Use headings, bullet points, and examples
-- For coding: provide clean code + explanation
-- For studies: exam-ready answers
-- Be friendly, accurate, and helpful
+- Explain step-by-step like a teacher
+- Fix grammar if needed
+- If question is unclear, interpret it smartly
+- Never give short answers
 `,
 };
 
-// trim input safety
-function cleanMessage(msg) {
-  return (msg || "").trim();
+// trim history to prevent crashes
+function trimHistory(history = []) {
+  return history.slice(-8);
+}
+
+// API CALL FUNCTION (with retry)
+async function askAI(messages) {
+  return await client.chat.completions.create({
+    model: "meta/llama-3.1-8b-instruct",
+    messages,
+    temperature: 0.7,
+    top_p: 0.9,
+    max_tokens: 1200,
+  });
 }
 
 router.post("/", async (req, res) => {
   try {
-    const message = cleanMessage(req.body.message);
+    let { message, history } = req.body;
+
+    message = (message || "").trim();
 
     if (!message) {
       return res.status(400).json({
@@ -39,32 +51,36 @@ router.post("/", async (req, res) => {
       });
     }
 
-    const completion = await client.chat.completions.create({
-      model: "meta/llama-3.1-8b-instruct",
+    const safeHistory = trimHistory(history);
 
-      messages: [
-        SYSTEM_PROMPT,
-        {
-          role: "user",
-          content: message,
-        },
-      ],
+    const messages = [
+      SYSTEM_PROMPT,
+      ...safeHistory,
+      {
+        role: "user",
+        content: message,
+      },
+    ];
 
-      temperature: 0.7,
-      top_p: 0.9,
-      max_tokens: 1200,
-    });
+    let response;
+
+    try {
+      response = await askAI(messages);
+    } catch (err) {
+      console.log("Retrying AI request...");
+      response = await askAI(messages);
+    }
 
     const reply =
-      completion?.choices?.[0]?.message?.content?.trim() ||
+      response?.choices?.[0]?.message?.content?.trim() ||
       "⚠️ No response from AI";
 
-    return res.json({ reply });
+    res.json({ reply });
   } catch (error) {
-    console.error("NVIDIA Error:", error?.message || error);
+    console.error("Chat Error:", error?.message || error);
 
-    return res.status(500).json({
-      reply: "⚠️ Server is busy. Please try again in a few seconds.",
+    res.status(500).json({
+      reply: "⚠️ Server busy. Please try again in a few seconds.",
     });
   }
 });

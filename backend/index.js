@@ -1,18 +1,15 @@
-require("dotenv").config();
-
 const express = require("express");
 const cors = require("cors");
+require("dotenv").config();
+
+const chatRoutes = require("./routes/chatRoutes");
 
 const app = express();
 
 app.use(cors());
 app.use(express.json());
 
-app.get("/", (req, res) => {
-  res.send("Backend Running");
-});
-
-app.use("/api/chat", require("./routes/chatRoutes"));
+app.use("/chat", chatRoutes);
 
 const PORT = process.env.PORT || 5000;
 
