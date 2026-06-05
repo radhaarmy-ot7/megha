@@ -8,27 +8,29 @@ const client = new OpenAI({
   baseURL: "https://integrate.api.nvidia.com/v1",
 });
 
+// 🧠 SYSTEM PROMPT (FIXED FOR CHATGPT STYLE + FORMATTING)
 const SYSTEM_PROMPT = {
   role: "system",
   content: `
-You are an expert AI tutor.
+You are a helpful AI assistant like ChatGPT.
 
-Rules:
-- Give clear, structured, and detailed answers
-- Use headings, bullet points, and examples
-- Explain step-by-step like a teacher
-- Fix grammar if needed
-- If question is unclear, interpret it smartly
-- Never give short answers
-`,
+VERY IMPORTANT RULES:
+- Give simple, clear, structured answers
+- Always use line breaks between points
+- Use bullet points when needed
+- Never write everything in one paragraph
+- Keep answers easy to read
+- Simple questions → short answers
+- Study questions → detailed explanations
+`
 };
 
-// trim history to prevent crashes
+// 🧠 Trim history (prevents crashes)
 function trimHistory(history = []) {
   return history.slice(-8);
 }
 
-// API CALL FUNCTION (with retry)
+// 🧠 AI CALL FUNCTION
 async function askAI(messages) {
   return await client.chat.completions.create({
     model: "meta/llama-3.1-8b-instruct",
@@ -39,6 +41,7 @@ async function askAI(messages) {
   });
 }
 
+// 🚀 MAIN ROUTE
 router.post("/", async (req, res) => {
   try {
     let { message, history } = req.body;
@@ -67,7 +70,7 @@ router.post("/", async (req, res) => {
     try {
       response = await askAI(messages);
     } catch (err) {
-      console.log("Retrying AI request...");
+      console.log("Retrying AI...");
       response = await askAI(messages);
     }
 
@@ -75,12 +78,12 @@ router.post("/", async (req, res) => {
       response?.choices?.[0]?.message?.content?.trim() ||
       "⚠️ No response from AI";
 
-    res.json({ reply });
+    return res.json({ reply });
   } catch (error) {
-    console.error("Chat Error:", error?.message || error);
+    console.error("Backend Error:", error?.message || error);
 
-    res.status(500).json({
-      reply: "⚠️ Server busy. Please try again in a few seconds.",
+    return res.status(500).json({
+      reply: "⚠️ Server busy. Please try again later.",
     });
   }
 });

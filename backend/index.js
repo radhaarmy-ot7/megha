@@ -9,6 +9,7 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// 🔥 ROUTE
 app.use("/chat", chatRoutes);
 
 const PORT = process.env.PORT || 5000;
