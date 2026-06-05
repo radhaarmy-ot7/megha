@@ -1,8 +1,4 @@
-import React, {
-  useState,
-  useEffect,
-  useRef,
-} from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 
 function ChatBox() {
@@ -25,27 +21,21 @@ function ChatBox() {
         ];
   });
 
-  const [currentChatId, setCurrentChatId] =
-    useState(
-      chats.length
-        ? chats[0].id
-        : Date.now()
-    );
+  const [currentChatId, setCurrentChatId] = useState(() => {
+    const saved = localStorage.getItem("allChats");
+    const parsed = saved ? JSON.parse(saved) : [];
+    return parsed.length ? parsed[0].id : Date.now();
+  });
+
+  const currentChat = chats.find((chat) => chat.id === currentChatId);
 
   useEffect(() => {
-    localStorage.setItem(
-      "allChats",
-      JSON.stringify(chats)
-    );
+    localStorage.setItem("allChats", JSON.stringify(chats));
 
     messagesEndRef.current?.scrollIntoView({
       behavior: "smooth",
     });
   }, [chats]);
-
-  const currentChat = chats.find(
-    (chat) => chat.id === currentChatId
-  );
 
   const createNewChat = () => {
     const newChat = {
@@ -59,41 +49,31 @@ function ChatBox() {
   };
 
   const deleteChat = (id) => {
-    const updatedChats = chats.filter(
-      (chat) => chat.id !== id
-    );
+    const updated = chats.filter((chat) => chat.id !== id);
 
-    if (updatedChats.length === 0) {
-      const defaultChat = {
+    if (!updated.length) {
+      const fallback = {
         id: Date.now(),
         title: "New Chat",
         messages: [],
       };
 
-      setChats([defaultChat]);
-      setCurrentChatId(defaultChat.id);
+      setChats([fallback]);
+      setCurrentChatId(fallback.id);
       return;
     }
 
-    setChats(updatedChats);
-    setCurrentChatId(updatedChats[0].id);
+    setChats(updated);
+    setCurrentChatId(updated[0].id);
   };
 
   const renameChat = (id) => {
-    const newTitle = prompt(
-      "Enter chat name"
-    );
-
+    const newTitle = prompt("Enter chat name");
     if (!newTitle) return;
 
     setChats((prev) =>
       prev.map((chat) =>
-        chat.id === id
-          ? {
-              ...chat,
-              title: newTitle,
-            }
-          : chat
+        chat.id === id ? { ...chat, title: newTitle } : chat
       )
     );
   };
@@ -116,15 +96,9 @@ function ChatBox() {
               ...chat,
               title:
                 chat.title === "New Chat"
-                  ? currentMessage.slice(
-                      0,
-                      25
-                    )
+                  ? currentMessage.slice(0, 25)
                   : chat.title,
-              messages: [
-                ...chat.messages,
-                userMessage,
-              ],
+              messages: [...chat.messages, userMessage],
             }
           : chat
       )
@@ -134,11 +108,9 @@ function ChatBox() {
 
     try {
       const res = await axios.post(
-  "https://megha-backend-kye1.onrender.com/api/chat",
-  {
-    message: currentMessage,
-  }
-);
+        "https://megha-backend-kye1.onrender.com/api/chat",
+        { message: currentMessage }
+      );
 
       const botMessage = {
         sender: "bot",
@@ -149,122 +121,74 @@ function ChatBox() {
       setChats((prev) =>
         prev.map((chat) =>
           chat.id === currentChatId
-            ? {
-                ...chat,
-                messages: [
-                  ...chat.messages,
-                  botMessage,
-                ],
-              }
+            ? { ...chat, messages: [...chat.messages, botMessage] }
             : chat
         )
       );
-    } catch (error) {
-      console.error(error);
-
+    } catch (err) {
       const errorMessage = {
         sender: "bot",
-        text: "⚠️ Backend Error",
+        text: "⚠️ Something went wrong. Try again.",
         time: new Date().toLocaleTimeString(),
       };
 
       setChats((prev) =>
         prev.map((chat) =>
           chat.id === currentChatId
-            ? {
-                ...chat,
-                messages: [
-                  ...chat.messages,
-                  errorMessage,
-                ],
-              }
+            ? { ...chat, messages: [...chat.messages, errorMessage] }
             : chat
         )
       );
     }
   };
 
-  const filteredChats = chats.filter(
-    (chat) =>
-      chat.title
-        .toLowerCase()
-        .includes(search.toLowerCase())
+  const filteredChats = chats.filter((chat) =>
+    chat.title.toLowerCase().includes(search.toLowerCase())
   );
 
   return (
     <div className="layout">
 
+      {/* SIDEBAR */}
       <div className="sidebar">
-
         <h2>🤖 AI Chat</h2>
 
-        <button
-          className="new-chat-btn"
-          onClick={createNewChat}
-        >
+        <button className="new-chat-btn" onClick={createNewChat}>
           + New Chat
         </button>
 
         <input
           className="search-box"
-          type="text"
           placeholder="Search chats..."
           value={search}
-          onChange={(e) =>
-            setSearch(e.target.value)
-          }
+          onChange={(e) => setSearch(e.target.value)}
         />
 
-        <p className="chat-count">
-          Chats: {chats.length}
-        </p>
-
         <div className="chat-history">
-
           {filteredChats.map((chat) => (
             <div
               key={chat.id}
               className={`chat-item ${
-                currentChatId === chat.id
-                  ? "active-chat"
-                  : ""
+                currentChatId === chat.id ? "active" : ""
               }`}
             >
               <div
                 className="chat-title"
-                onClick={() =>
-                  setCurrentChatId(chat.id)
-                }
+                onClick={() => setCurrentChatId(chat.id)}
               >
                 {chat.title}
               </div>
 
               <div className="chat-actions">
-
-                <button
-                  onClick={() =>
-                    renameChat(chat.id)
-                  }
-                >
-                  ✏️
-                </button>
-
-                <button
-                  onClick={() =>
-                    deleteChat(chat.id)
-                  }
-                >
-                  🗑️
-                </button>
-
+                <button onClick={() => renameChat(chat.id)}>✏️</button>
+                <button onClick={() => deleteChat(chat.id)}>🗑️</button>
               </div>
             </div>
           ))}
-
         </div>
-
       </div>
 
+      {/* CHAT AREA */}
       <div className="chat-container">
 
         <div className="chat-header">
@@ -272,60 +196,34 @@ function ChatBox() {
         </div>
 
         <div className="messages">
-
-          {currentChat?.messages.map(
-            (msg, index) => (
-              <div
-                key={index}
-                className={`message-row ${msg.sender}`}
-              >
-                <div className="avatar">
-                  {msg.sender === "user"
-                    ? "🧑"
-                    : "🤖"}
-                </div>
-
-                <div
-                  className={`message ${msg.sender}`}
-                >
-                  <div>{msg.text}</div>
-
-                  <small>
-                    {msg.time}
-                  </small>
-                </div>
+          {currentChat?.messages.map((msg, i) => (
+            <div key={i} className={`message-row ${msg.sender}`}>
+              <div className="avatar">
+                {msg.sender === "user" ? "🧑" : "🤖"}
               </div>
-            )
-          )}
+
+              <div className={`message ${msg.sender}`}>
+                <div>{msg.text}</div>
+                <small>{msg.time}</small>
+              </div>
+            </div>
+          ))}
 
           <div ref={messagesEndRef}></div>
-
         </div>
 
         <div className="input-box">
-
           <input
-            type="text"
             placeholder="Ask anything..."
             value={message}
-            onChange={(e) =>
-              setMessage(e.target.value)
-            }
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                sendMessage();
-              }
-            }}
+            onChange={(e) => setMessage(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
           />
 
-          <button onClick={sendMessage}>
-            Send
-          </button>
-
+          <button onClick={sendMessage}>Send</button>
         </div>
 
       </div>
-
     </div>
   );
 }
