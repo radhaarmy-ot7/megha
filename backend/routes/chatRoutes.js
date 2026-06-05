@@ -1,95 +1,70 @@
 const express = require("express");
-const axios = require("axios");
+const OpenAI = require("openai");
 
 const router = express.Router();
+
+const client = new OpenAI({
+  apiKey: process.env.NVIDIA_API_KEY,
+  baseURL: "https://integrate.api.nvidia.com/v1",
+});
 
 const SYSTEM_PROMPT = {
   role: "system",
   content: `
-You are an expert AI tutor like ChatGPT.
+You are an intelligent AI assistant.
 
 Rules:
-- Give detailed, structured, and clear answers
-- Use headings, bullet points, and steps
-- Explain like teaching a student
-- Always include examples when possible
-- Never give short or incomplete answers
-- Break complex topics into simple parts
-- Be accurate and helpful
+- Give clear, structured, and detailed answers
+- Fix grammar mistakes before answering
+- If question is unclear, interpret it intelligently
+- Use headings, bullet points, and examples
+- For coding: provide clean code + explanation
+- For studies: exam-ready answers
+- Be friendly, accurate, and helpful
 `,
 };
 
-// 🔥 limit history to avoid slow / crash
-function trimHistory(history = []) {
-  return history.slice(-10); // keep last 10 messages only
-}
-
-// 🔥 retry function for stability
-async function callAI(messages) {
-  return await axios.post(
-    "https://integrate.api.nvidia.com/v1/chat/completions",
-    {
-      model: "meta/llama-3.1-70b-instruct",
-      messages,
-      temperature: 0.8,
-      top_p: 0.9,
-      max_tokens: 1200,
-    },
-    {
-      headers: {
-        Authorization: `Bearer ${process.env.NVIDIA_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      timeout: 25000,
-    }
-  );
+// trim input safety
+function cleanMessage(msg) {
+  return (msg || "").trim();
 }
 
 router.post("/", async (req, res) => {
   try {
-    const { message, history } = req.body;
+    const message = cleanMessage(req.body.message);
 
-    if (!message || !message.trim()) {
+    if (!message) {
       return res.status(400).json({
-        reply: "Message cannot be empty",
+        reply: "Message is required",
       });
     }
 
-    const safeHistory = trimHistory(history);
+    const completion = await client.chat.completions.create({
+      model: "meta/llama-3.1-8b-instruct",
 
-    const messages = [
-      SYSTEM_PROMPT,
-      ...safeHistory,
-      {
-        role: "user",
-        content: message,
-      },
-    ];
+      messages: [
+        SYSTEM_PROMPT,
+        {
+          role: "user",
+          content: message,
+        },
+      ],
 
-    let response;
+      temperature: 0.7,
+      top_p: 0.9,
+      max_tokens: 1200,
+    });
 
-    // 🔥 try once
-    try {
-      response = await callAI(messages);
-    } catch (err) {
-      console.warn("Retrying AI call...");
-      // 🔥 retry once if fails
-      response = await callAI(messages);
-    }
-
-    const botReply =
-      response?.data?.choices?.[0]?.message?.content?.trim() ||
+    const reply =
+      completion?.choices?.[0]?.message?.content?.trim() ||
       "⚠️ No response from AI";
 
-    return res.json({
-      reply: botReply,
-    });
+    return res.json({ reply });
   } catch (error) {
-    console.error("Chat API Error:", error?.response?.data || error.message);
+    console.error("NVIDIA Error:", error?.message || error);
 
     return res.status(500).json({
-      reply:
-        "⚠️ Server is busy right now. Please try again in a few seconds.",
+      reply: "⚠️ Server is busy. Please try again in a few seconds.",
     });
   }
 });
