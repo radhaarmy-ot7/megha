@@ -8,34 +8,49 @@ const client = new OpenAI({
   baseURL: "https://integrate.api.nvidia.com/v1",
 });
 
+// IMPROVED SYSTEM PROMPT with examples
 const SYSTEM_PROMPT = {
   role: "system",
   content: `
-You are an expert AI tutor.
+You are an expert AI tutor who ALWAYS gives structured, beautiful answers.
 
-Rules:
-- Give clear, structured, and detailed answers
-- Use headings, bullet points, and examples
-- Explain step-by-step like a teacher
-- Fix grammar if needed
-- If question is unclear, interpret it smartly
-- Never give short answers
+**FORMATTING RULES (MANDATORY):**
+1. Use 📌 **bold headings** for each section
+2. Use bullet points (• or -) for lists
+3. Use numbered steps for processes
+4. Add 💡 **Example:** sections when relevant
+5. Add ✅ **Summary:** at the end
+6. Use line breaks between sections
+7. NEVER give one-line answers
+
+**EXAMPLE OF CORRECT FORMAT:**
+
+📖 **Full Form:** HYPERTEXT MARKUP LANGUAGE
+
+📌 **What it is:**
+• Standard language for web pages
+• Uses tags like <html>, <body>
+
+💡 **Example:**
+<h1>Hello World</h1>
+
+✅ **Summary:** HTML structures web content
+
+**Now follow this EXACT style for EVERY answer.**
 `,
 };
 
-// trim history to prevent crashes
 function trimHistory(history = []) {
-  return history.slice(-8);
+  return history.slice(-6);
 }
 
-// API CALL FUNCTION (with retry)
 async function askAI(messages) {
   return await client.chat.completions.create({
     model: "meta/llama-3.1-8b-instruct",
     messages,
-    temperature: 0.7,
-    top_p: 0.9,
-    max_tokens: 1200,
+    temperature: 0.9,
+    top_p: 0.95,
+    max_tokens: 2000,
   });
 }
 
@@ -47,9 +62,12 @@ router.post("/", async (req, res) => {
 
     if (!message) {
       return res.status(400).json({
-        reply: "Message is required",
+        reply: "❌ Message is required",
       });
     }
+
+    // Inject format reminder into user message
+    const enhancedMessage = `${message}\n\n[IMPORTANT: Please answer with headings, bullet points, examples, and a summary.]`;
 
     const safeHistory = trimHistory(history);
 
@@ -58,7 +76,7 @@ router.post("/", async (req, res) => {
       ...safeHistory,
       {
         role: "user",
-        content: message,
+        content: enhancedMessage,
       },
     ];
 
@@ -68,12 +86,16 @@ router.post("/", async (req, res) => {
       response = await askAI(messages);
     } catch (err) {
       console.log("Retrying AI request...");
+      await new Promise(resolve => setTimeout(resolve, 1000));
       response = await askAI(messages);
     }
 
-    const reply =
-      response?.choices?.[0]?.message?.content?.trim() ||
-      "⚠️ No response from AI";
+    let reply = response?.choices?.[0]?.message?.content?.trim() || "⚠️ No response from AI";
+
+    // FALLBACK: If reply is too short or has no structure, append a note
+    if (reply.length < 100 && !reply.includes("•") && !reply.includes("📌")) {
+      reply += "\n\n💡 **Tip:** I'll give more detailed answers next time. Ask me again!";
+    }
 
     res.json({ reply });
   } catch (error) {

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
+import ReactMarkdown from "react-markdown";
 
 function ChatBox() {
   const messagesEndRef = useRef(null);
@@ -78,7 +79,11 @@ function ChatBox() {
     );
   };
 
-  // ⭐ FIXED FAST MESSAGE HANDLER
+  const copyToClipboard = (text) => {
+    navigator.clipboard.writeText(text);
+    alert("✅ Copied to clipboard!");
+  };
+
   const sendMessage = async () => {
     if (!message.trim()) return;
 
@@ -94,11 +99,11 @@ function ChatBox() {
     const botTypingMessage = {
       id: tempId,
       sender: "bot",
-      text: "Typing...",
+      text: "✍️ Typing...",
       time: new Date().toLocaleTimeString(),
     };
 
-    // 1. Instant UI update (FAST FEEL)
+    // Instant UI update
     setChats((prev) =>
       prev.map((chat) =>
         chat.id === currentChatId
@@ -128,7 +133,7 @@ function ChatBox() {
         time: new Date().toLocaleTimeString(),
       };
 
-      // 2. Replace "Typing..." with real answer
+      // Replace "Typing..." with real answer
       setChats((prev) =>
         prev.map((chat) =>
           chat.id === currentChatId
@@ -169,7 +174,6 @@ function ChatBox() {
 
   return (
     <div className="layout">
-
       {/* SIDEBAR */}
       <div className="sidebar">
         <h2>🤖 AI Chat</h2>
@@ -211,9 +215,14 @@ function ChatBox() {
 
       {/* CHAT AREA */}
       <div className="chat-container">
-
         <div className="chat-header">
-          AI Assistant
+          <span>🤖 AI Assistant</span>
+          <button 
+            onClick={() => copyToClipboard(currentChat?.messages.filter(m => m.sender === 'bot').map(m => m.text).join('\n\n') || '')}
+            className="copy-all-btn"
+          >
+            📋 Copy All
+          </button>
         </div>
 
         <div className="messages">
@@ -224,8 +233,24 @@ function ChatBox() {
               </div>
 
               <div className={`message ${msg.sender}`}>
-                <div>{msg.text}</div>
-                <small>{msg.time}</small>
+                {msg.sender === "bot" ? (
+                  <div className="markdown-content">
+                    <ReactMarkdown>{msg.text}</ReactMarkdown>
+                  </div>
+                ) : (
+                  <div>{msg.text}</div>
+                )}
+                <div className="message-footer">
+                  <small>{msg.time}</small>
+                  {msg.sender === "bot" && (
+                    <button 
+                      onClick={() => copyToClipboard(msg.text)}
+                      className="copy-msg-btn"
+                    >
+                      📋
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           ))}
@@ -235,15 +260,14 @@ function ChatBox() {
 
         <div className="input-box">
           <input
-            placeholder="Ask anything..."
+            placeholder="Ask anything... (I'll give structured answers with headings & bullet points)"
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && sendMessage()}
           />
 
-          <button onClick={sendMessage}>Send</button>
+          <button onClick={sendMessage}>Send ✨</button>
         </div>
-
       </div>
     </div>
   );
